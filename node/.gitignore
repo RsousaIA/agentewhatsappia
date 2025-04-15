@@ -1,0 +1,30 @@
+# Dependências
+node_modules/
+package-lock.json
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Ambiente
+.env
+.env.local
+.env.*.local
+
+# Cobertura de testes
+coverage/
+
+# Arquivos do WhatsApp
+.wwebjs_auth/
+.wwebjs_cache/
+
+# IDEs e editores
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Sistema operacional
+.DS_Store
+Thumbs.db 

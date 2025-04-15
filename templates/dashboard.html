@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Agente de Suporte WhatsApp</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+        }
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            border: none;
+        }
+        .card-header {
+            background-color: #25D366;
+            color: white;
+            border-radius: 10px 10px 0 0 !important;
+            font-weight: bold;
+        }
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #075E54;
+        }
+        .metric-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .navbar {
+            background-color: #128C7E;
+        }
+        .navbar-brand {
+            color: white;
+            font-weight: bold;
+        }
+        .table-container {
+            overflow-x: auto;
+        }
+        .badge-success {
+            background-color: #25D366;
+            color: white;
+        }
+        .badge-warning {
+            background-color: #FCB900;
+            color: white;
+        }
+        .badge-danger {
+            background-color: #FF5252;
+            color: white;
+        }
+        .sidebar {
+            height: 100%;
+            background-color: #075E54;
+            color: white;
+        }
+        .sidebar-link {
+            color: white;
+            text-decoration: none;
+            padding: 10px 15px;
+            display: block;
+            transition: all 0.3s;
+        }
+        .sidebar-link:hover {
+            background-color: #128C7E;
+            color: white;
+        }
+        .sidebar-link.active {
+            background-color: #25D366;
+            color: white;
+            font-weight: bold;
+        }
+        .sidebar-icon {
+            margin-right: 10px;
+        }
+        .emoji-rating {
+            font-size: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-whatsapp me-2"></i>
+                Dashboard de Métricas - Suporte WhatsApp
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="#" id="refreshButton">
+                            <i class="bi bi-arrow-clockwise"></i> Atualizar
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-2 col-lg-2 d-none d-md-block sidebar p-0">
+                <div class="d-flex flex-column p-3">
+                    <a href="#metricas" class="sidebar-link active" data-section="metricas">
+                        <i class="bi bi-speedometer2 sidebar-icon"></i> Métricas Gerais
+                    </a>
+                    <a href="#tempos" class="sidebar-link" data-section="tempos">
+                        <i class="bi bi-clock sidebar-icon"></i> Tempos de Resposta
+                    </a>
+                    <a href="#avaliacao" class="sidebar-link" data-section="avaliacao">
+                        <i class="bi bi-star sidebar-icon"></i> Avaliações
+                    </a>
+                    <a href="#atendentes" class="sidebar-link" data-section="atendentes">
+                        <i class="bi bi-people sidebar-icon"></i> Atendentes
+                    </a>
+                    <a href="#tabela" class="sidebar-link" data-section="tabela">
+                        <i class="bi bi-table sidebar-icon"></i> Tabela de Dados
+                    </a>
+                </div>
+            </div>
+
+            <!-- Conteúdo Principal -->
+            <div class="col-md-10 col-lg-10 ms-auto p-4">
+                <!-- Seção de Métricas Gerais -->
+                <div id="metricas" class="section-content active">
+                    <h2 class="mb-4">Métricas Gerais</h2>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-chat-dots me-2"></i> Total de Atendimentos
+                                </div>
+                                <div class="card-body text-center py-4">
+                                    <div class="metric-value" id="totalAtendimentos">0</div>
+                                    <div class="metric-label">atendimentos realizados</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-stopwatch me-2"></i> Tempo Médio de Resolução
+                                </div>
+                                <div class="card-body text-center py-4">
+                                    <div class="metric-value" id="tempoMedioResolucao">0</div>
+                                    <div class="metric-label">minutos</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-star me-2"></i> Pontuação Média
+                                </div>
+                                <div class="card-body text-center py-4">
+                                    <div class="metric-value" id="pontuacaoMedia">0</div>
+                                    <div class="metric-label">de 10 pontos</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-check-circle me-2"></i> Taxa de Resolução
+                                </div>
+                                <div class="card-body text-center py-4">
+                                    <div class="metric-value" id="taxaResolucao">0%</div>
+                                    <div class="metric-label">de atendimentos resolvidos</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-bar-chart me-2"></i> Pontuações por Categoria
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="pontuacoesChart" height="250"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-graph-up me-2"></i> Evolução das Pontuações
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="evolucaoChart" height="250"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seção de Tempos de Resposta -->
+                <div id="tempos" class="section-content d-none">
+                    <h2 class="mb-4">Tempos de Resposta e Resolução</h2>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-clock-history me-2"></i> Distribuição de Tempos de Primeira Resposta
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="tempoPrimeiraRespostaChart" height="250"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-hourglass-split me-2"></i> Distribuição de Tempos de Resolução
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="tempoResolucaoChart" height="250"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-calendar-week me-2"></i> Tempos Médios por Dia da Semana
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="temposDiaSemanaChart" height="250"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seção de Avaliações -->
+                <div id="avaliacao" class="section-content d-none">
+                    <h2 class="mb-4">Análise de Avaliações</h2>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-emoji-smile me-2"></i> Distribuição de Pontuações Finais
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="distribuicaoPontuacoesChart" height="250"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-chat-quote me-2"></i> Últimos Comentários
+                                </div>
+                                <div class="card-body">
+                                    <div id="comentariosContainer">
+                                        <div class="alert alert-light">Nenhum comentário disponível</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-bar-chart-steps me-2"></i> Correlação entre Tempo de Resolução e Pontuação
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="correlacaoTempoNotaChart" height="250"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seção de Atendentes -->
+                <div id="atendentes" class="section-content d-none">
+                    <h2 class="mb-4">Desempenho dos Atendentes</h2>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-trophy me-2"></i> Ranking de Pontuações por Atendente
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="rankingAtendentesChart" height="300"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-stopwatch me-2"></i> Tempo Médio de Resolução por Atendente
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="tempoAtendentesChart" height="300"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="bi bi-people-fill me-2"></i> Detalhes por Atendente
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-container">
+                                        <table class="table table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>Atendente</th>
+                                                    <th>Atendimentos</th>
+                                                    <th>Tempo Médio (min)</th>
+                                                    <th>Pontuação Média</th>
+                                                    <th>Taxa de Resolução</th>
+                                                    <th>Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tabelaAtendentes">
+                                                <!-- Dados serão inseridos via JavaScript -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seção de Tabela de Dados -->
+                <div id="tabela" class="section-content d-none">
+                    <h2 class="mb-4">Tabela de Avaliações</h2>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <i class="bi bi-table me-2"></i> Histórico de Avaliações
+                                </div>
+                                <div class="col-md-6 text-end">
+                                    <input type="text" id="filtroDados" class="form-control form-control-sm d-inline-block w-auto" placeholder="Filtrar...">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-container">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Data</th>
+                                            <th>Cliente</th>
+                                            <th>Atendente</th>
+                                            <th>Tempo de Resposta</th>
+                                            <th>Tempo de Resolução</th>
+                                            <th>Pontuação</th>
+                                            <th>Comentário</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tabelaAvaliacoes">
+                                        <!-- Dados serão inseridos via JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Função para carregar os dados do dashboard
+        async function carregarDados() {
+            try {
+                // Carregar todas as métricas
+                const response = await fetch('/api/metricas/todas-metricas');
+                const data = await response.json();
+                
+                if (data.erro) {
+                    console.error("Erro ao carregar métricas:", data.mensagem);
+                    return;
+                }
+                
+                // Atualizar indicadores gerais
+                document.getElementById('totalAtendimentos').textContent = data.total_atendimentos || 0;
+                document.getElementById('tempoMedioResolucao').textContent = data.tempo_medio_resolucao ? 
+                    data.tempo_medio_resolucao.toFixed(1) : 0;
+                document.getElementById('pontuacaoMedia').textContent = data.pontuacao_media ? 
+                    data.pontuacao_media.toFixed(1) : 0;
+                document.getElementById('taxaResolucao').textContent = data.taxa_resolucao ? 
+                    `${(data.taxa_resolucao * 100).toFixed(1)}%` : "0%";
+                
+                // Carregar gráficos
+                carregarGraficos(data);
+                
+                // Carregar avaliações para a tabela
+                const avaliacoesResponse = await fetch('/api/metricas/avaliacoes');
+                const avaliacoesData = await avaliacoesResponse.json();
+                
+                if (!avaliacoesData.erro) {
+                    preencherTabelaAvaliacoes(avaliacoesData);
+                    preencherComentarios(avaliacoesData);
+                }
+                
+                // Carregar dados dos atendentes
+                const atendenteResponse = await fetch('/api/metricas/eficiencia-atendentes');
+                const atendenteData = await atendenteResponse.json();
+                
+                if (!atendenteData.erro) {
+                    preencherTabelaAtendentes(atendenteData);
+                }
+                
+            } catch (error) {
+                console.error("Erro ao carregar dados:", error);
+            }
+        }
+        
+        // Função para carregar todos os gráficos
+        function carregarGraficos(data) {
+            // Gráfico de Pontuações por Categoria
+            const ctxPontuacoes = document.getElementById('pontuacoesChart').getContext('2d');
+            new Chart(ctxPontuacoes, {
+                type: 'radar',
+                data: {
+                    labels: ['Tempo de Resposta', 'Qualidade', 'Resolução', 'Satisfação'],
+                    datasets: [{
+                        label: 'Pontuação Média',
+                        data: [
+                            data.media_pontuacao_tempo_resposta || 0,
+                            data.media_pontuacao_qualidade || 0,
+                            data.media_pontuacao_resolucao || 0,
+                            data.media_pontuacao_satisfacao || 0
+                        ],
+                        backgroundColor: 'rgba(37, 211, 102, 0.2)',
+                        borderColor: 'rgba(37, 211, 102, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(37, 211, 102, 1)'
+                    }]
+                },
+                options: {
+                    scales: {
+                        r: {
+                            angleLines: {
+                                display: true
+                            },
+                            suggestedMin: 0,
+                            suggestedMax: 10
+                        }
+                    }
+                }
+            });
+            
+            // Outros gráficos seriam inicializados aqui...
+            // Por simplicidade, criamos apenas os dados de exemplo para o gráfico de evolução
+            
+            // Gráfico de Evolução das Pontuações (com dados de exemplo)
+            const ctxEvolucao = document.getElementById('evolucaoChart').getContext('2d');
+            new Chart(ctxEvolucao, {
+                type: 'line',
+                data: {
+                    labels: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho'],
+                    datasets: [{
+                        label: 'Pontuação Média',
+                        data: [6.5, 7.2, 7.0, 7.8, 8.2, data.pontuacao_media || 8.5],
+                        borderColor: 'rgba(37, 211, 102, 1)',
+                        backgroundColor: 'rgba(37, 211, 102, 0.1)',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            min: 5,
+                            max: 10
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Função para preencher a tabela de avaliações
+        function preencherTabelaAvaliacoes(avaliacoes) {
+            const tbody = document.getElementById('tabelaAvaliacoes');
+            tbody.innerHTML = '';
+            
+            if (!avaliacoes || !avaliacoes.length) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = '<td colspan="7" class="text-center">Nenhuma avaliação disponível</td>';
+                tbody.appendChild(tr);
+                return;
+            }
+            
+            avaliacoes.forEach(avaliacao => {
+                const tr = document.createElement('tr');
+                
+                // Função para gerar os emojis com base na pontuação
+                const getEmojiRating = (score) => {
+                    if (score >= 8) return '😄';
+                    if (score >= 6) return '🙂';
+                    if (score >= 4) return '😐';
+                    return '😞';
+                };
+                
+                // Formata o tempo em minutos para horas:minutos
+                const formatarTempo = (minutos) => {
+                    if (!minutos) return 'N/A';
+                    const horas = Math.floor(minutos / 60);
+                    const mins = minutos % 60;
+                    return horas > 0 ? `${horas}h ${mins}m` : `${mins}m`;
+                };
+                
+                tr.innerHTML = `
+                    <td>${avaliacao.data || 'N/A'}</td>
+                    <td>${avaliacao.cliente || 'Não identificado'}</td>
+                    <td>${avaliacao.atendente || 'Não identificado'}</td>
+                    <td>${formatarTempo(avaliacao.tempo_primeira_resposta)}</td>
+                    <td>${formatarTempo(avaliacao.tempo_resolucao)}</td>
+                    <td>
+                        <span class="emoji-rating">${getEmojiRating(avaliacao.pontuacao_final)}</span>
+                        ${avaliacao.pontuacao_final.toFixed(1)}
+                    </td>
+                    <td>${avaliacao.comentario || '-'}</td>
+                `;
+                
+                tbody.appendChild(tr);
+            });
+        }
+        
+        // Função para preencher a seção de comentários
+        function preencherComentarios(avaliacoes) {
+            const container = document.getElementById('comentariosContainer');
+            container.innerHTML = '';
+            
+            // Filtrar apenas avaliações com comentários
+            const comentarios = avaliacoes.filter(a => a.comentario && a.comentario.trim() !== '');
+            
+            if (!comentarios.length) {
+                container.innerHTML = '<div class="alert alert-light">Nenhum comentário disponível</div>';
+                return;
+            }
+            
+            // Exibir os últimos 5 comentários
+            const ultimosComentarios = comentarios.slice(0, 5);
+            
+            ultimosComentarios.forEach(avaliacao => {
+                // Determinar a classe do alerta com base na pontuação
+                let alertClass = 'alert-success';
+                if (avaliacao.pontuacao_final < 5) {
+                    alertClass = 'alert-danger';
+                } else if (avaliacao.pontuacao_final < 7) {
+                    alertClass = 'alert-warning';
+                }
+                
+                const comentarioDiv = document.createElement('div');
+                comentarioDiv.className = `alert ${alertClass} mb-3`;
+                comentarioDiv.innerHTML = `
+                    <p class="mb-1"><strong>${avaliacao.cliente}</strong> - Atendido por <em>${avaliacao.atendente}</em> em ${avaliacao.data}</p>
+                    <p class="mb-0">"${avaliacao.comentario}"</p>
+                    <div class="text-end mt-2"><strong>Nota: ${avaliacao.pontuacao_final.toFixed(1)}/10</strong></div>
+                `;
+                
+                container.appendChild(comentarioDiv);
+            });
+        }
+        
+        // Função para preencher a tabela de atendentes
+        function preencherTabelaAtendentes(dados) {
+            const tbody = document.getElementById('tabelaAtendentes');
+            tbody.innerHTML = '';
+            
+            if (!dados || !dados.length) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = '<td colspan="6" class="text-center">Nenhum dado de atendente disponível</td>';
+                tbody.appendChild(tr);
+                return;
+            }
+            
+            dados.forEach(atendente => {
+                const tr = document.createElement('tr');
+                
+                // Determinar a classe do status com base na pontuação média
+                let statusClass = 'badge-success';
+                let statusText = 'Excelente';
+                
+                if (atendente.pontuacao_media < 5) {
+                    statusClass = 'badge-danger';
+                    statusText = 'Precisa melhorar';
+                } else if (atendente.pontuacao_media < 7) {
+                    statusClass = 'badge-warning';
+                    statusText = 'Regular';
+                }
+                
+                tr.innerHTML = `
+                    <td>${atendente.nome}</td>
+                    <td>${atendente.total_atendimentos}</td>
+                    <td>${atendente.tempo_medio_resolucao.toFixed(1)}</td>
+                    <td>${atendente.pontuacao_media.toFixed(1)}</td>
+                    <td>${(atendente.taxa_resolucao * 100).toFixed(1)}%</td>
+                    <td><span class="badge ${statusClass}">${statusText}</span></td>
+                `;
+                
+                tbody.appendChild(tr);
+            });
+        }
+        
+        // Navegação entre seções
+        document.addEventListener('DOMContentLoaded', function() {
+            // Carregar dados iniciais
+            carregarDados();
+            
+            // Configurar links da sidebar
+            const sidebarLinks = document.querySelectorAll('.sidebar-link');
+            sidebarLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // Remover classe ativa de todos os links
+                    sidebarLinks.forEach(l => l.classList.remove('active'));
+                    
+                    // Adicionar classe ativa ao link clicado
+                    this.classList.add('active');
+                    
+                    // Obter a seção a ser exibida
+                    const sectionId = this.getAttribute('data-section');
+                    
+                    // Esconder todas as seções
+                    document.querySelectorAll('.section-content').forEach(section => {
+                        section.classList.add('d-none');
+                        section.classList.remove('active');
+                    });
+                    
+                    // Mostrar a seção selecionada
+                    const selectedSection = document.getElementById(sectionId);
+                    selectedSection.classList.remove('d-none');
+                    selectedSection.classList.add('active');
+                });
+            });
+            
+            // Configurar botão de atualização
+            document.getElementById('refreshButton').addEventListener('click', function(e) {
+                e.preventDefault();
+                carregarDados();
+            });
+            
+            // Configurar filtro da tabela
+            document.getElementById('filtroDados').addEventListener('keyup', function() {
+                const filtro = this.value.toLowerCase();
+                const tbody = document.getElementById('tabelaAvaliacoes');
+                
+                Array.from(tbody.getElementsByTagName('tr')).forEach(row => {
+                    const texto = row.textContent.toLowerCase();
+                    row.style.display = texto.includes(filtro) ? '' : 'none';
+                });
+            });
+        });
+    </script>
+</body>
+</html> 

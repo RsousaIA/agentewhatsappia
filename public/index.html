@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Agente de Suporte WhatsApp</title>
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Fonte Nunito do Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Socket.IO para atualizações em tempo real -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>Agente Suporte</h1>
+            </div>
+            
+            <div class="sidebar-divider"></div>
+            
+            <div class="nav-heading">Dashboard</div>
+            
+            <div class="nav-item">
+                <a href="#" class="nav-link active" data-section="dashboard">
+                    <i class="fas fa-fw fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-divider"></div>
+            
+            <div class="nav-heading">Monitoramento</div>
+            
+            <div class="nav-item">
+                <a href="#" class="nav-link" data-section="conversas">
+                    <i class="fas fa-fw fa-comments"></i>
+                    <span>Conversas</span>
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="#" class="nav-link" data-section="solicitacoes">
+                    <i class="fas fa-fw fa-tasks"></i>
+                    <span>Solicitações</span>
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="#" class="nav-link" data-section="avaliacoes">
+                    <i class="fas fa-fw fa-star"></i>
+                    <span>Avaliações</span>
+                </a>
+            </div>
+            
+            <div class="sidebar-divider"></div>
+            
+            <div class="nav-heading">Análises</div>
+            
+            <div class="nav-item">
+                <a href="#" class="nav-link" data-section="metricas">
+                    <i class="fas fa-fw fa-chart-line"></i>
+                    <span>Métricas</span>
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="#" class="nav-link" data-section="relatorios">
+                    <i class="fas fa-fw fa-file-alt"></i>
+                    <span>Relatórios</span>
+                </a>
+            </div>
+        </div>
+        
+        <!-- Conteúdo principal -->
+        <div class="content-wrapper">
+            <div class="topbar">
+                <div class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span id="status-text">Conectado</span>
+                </div>
+                
+                <div class="time">
+                    <span id="current-time"></span>
+                </div>
+            </div>
+            
+            <div class="content">
+                <!-- Seção Dashboard -->
+                <div id="dashboard" class="section active">
+                    <h1 class="h3 mb-4">Dashboard</h1>
+                    
+                    <!-- Estatísticas principais -->
+                    <div class="stats-grid">
+                        <div class="card stat-card primary">
+                            <div class="stat-info">
+                                <h2 id="conversas-ativas">0</h2>
+                                <div class="stat-label">Conversas Ativas</div>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-comments"></i>
+                            </div>
+                        </div>
+                        
+                        <div class="card stat-card success">
+                            <div class="stat-info">
+                                <h2 id="mensagens-hoje">0</h2>
+                                <div class="stat-label">Mensagens Hoje</div>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                        </div>
+                        
+                        <div class="card stat-card warning">
+                            <div class="stat-info">
+                                <h2 id="solicitacoes-pendentes">0</h2>
+                                <div class="stat-label">Solicitações Pendentes</div>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-tasks"></i>
+                            </div>
+                        </div>
+                        
+                        <div class="card stat-card danger">
+                            <div class="stat-info">
+                                <h2 id="nota-media">0</h2>
+                                <div class="stat-label">Nota Média (0-10)</div>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Gráficos e tabelas -->
+                    <div class="row">
+                        <div class="card" style="width: 100%; margin-bottom: 1.5rem;">
+                            <div class="card-header">
+                                <h6>Mensagens por Dia</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="mensagensChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+                        <div class="card" style="flex: 1; min-width: 300px;">
+                            <div class="card-header">
+                                <h6>Status das Solicitações</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container" style="height: 250px;">
+                                    <canvas id="solicitacoesChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card" style="flex: 1; min-width: 300px;">
+                            <div class="card-header">
+                                <h6>Tempo de Resposta (segundos)</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container" style="height: 250px;">
+                                    <canvas id="tempoRespostaChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card" style="margin-top: 1.5rem;">
+                        <div class="card-header">
+                            <h6>Avaliações Recentes</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table" id="avaliacoes-recentes">
+                                    <thead>
+                                        <tr>
+                                            <th>Cliente</th>
+                                            <th>Atendente</th>
+                                            <th>Nota</th>
+                                            <th>Data</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Será preenchido via JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Seção Conversas -->
+                <div id="conversas" class="section">
+                    <h1 class="h3 mb-4">Conversas</h1>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h6>Lista de Conversas</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table" id="conversas-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Cliente</th>
+                                            <th>Atendente</th>
+                                            <th>Status</th>
+                                            <th>Início</th>
+                                            <th>Duração</th>
+                                            <th>Tempo Resposta</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Será preenchido via JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Seção Solicitações -->
+                <div id="solicitacoes" class="section">
+                    <h1 class="h3 mb-4">Solicitações</h1>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h6>Lista de Solicitações</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table" id="solicitacoes-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Cliente</th>
+                                            <th>Descrição</th>
+                                            <th>Data</th>
+                                            <th>Prazo</th>
+                                            <th>Status</th>
+                                            <th>Atendente</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Será preenchido via JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Seção Avaliações -->
+                <div id="avaliacoes" class="section">
+                    <h1 class="h3 mb-4">Avaliações</h1>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h6>Lista de Avaliações</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table" id="avaliacoes-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Cliente</th>
+                                            <th>Atendente</th>
+                                            <th>Nota Final</th>
+                                            <th>Comunicação</th>
+                                            <th>Conhecimento</th>
+                                            <th>Paciência</th>
+                                            <th>Data</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Será preenchido via JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Seção Métricas -->
+                <div id="metricas" class="section">
+                    <h1 class="h3 mb-4">Métricas</h1>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h6>Métricas de Atendimento</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="metrics-container">
+                                <div id="metricas-content">
+                                    <!-- Será preenchido via JavaScript -->
+                                    <div class="loading">
+                                        <div class="spinner"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Seção Relatórios -->
+                <div id="relatorios" class="section">
+                    <h1 class="h3 mb-4">Relatórios</h1>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h6>Relatórios Disponíveis</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="reports-list">
+                                <div class="report-item">
+                                    <h5>Relatório de Atendimento</h5>
+                                    <p>Resumo completo dos atendimentos realizados no período.</p>
+                                    <button class="btn btn-primary btn-sm">Gerar Relatório</button>
+                                </div>
+                                
+                                <div class="report-item" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e3e6f0;">
+                                    <h5>Relatório de Avaliações</h5>
+                                    <p>Análise detalhada das avaliações recebidas.</p>
+                                    <button class="btn btn-primary btn-sm">Gerar Relatório</button>
+                                </div>
+                                
+                                <div class="report-item" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e3e6f0;">
+                                    <h5>Relatório de Solicitações</h5>
+                                    <p>Status e métricas de todas as solicitações.</p>
+                                    <button class="btn btn-primary btn-sm">Gerar Relatório</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer">
+                <div class="copyright">
+                    &copy; 2025 Agente de Suporte WhatsApp - Sistema de Avaliação de Atendimento
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Detalhe da Conversa -->
+    <div class="modal-backdrop" id="conversa-modal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalhes da Conversa</h5>
+                <button class="modal-close" id="close-conversa-modal">&times;</button>
+            </div>
+            <div class="modal-body" id="conversa-modal-body">
+                <!-- Será preenchido via JavaScript -->
+                <div class="loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Detalhe da Avaliação -->
+    <div class="modal-backdrop" id="avaliacao-modal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalhes da Avaliação</h5>
+                <button class="modal-close" id="close-avaliacao-modal">&times;</button>
+            </div>
+            <div class="modal-body" id="avaliacao-modal-body">
+                <!-- Será preenchido via JavaScript -->
+                <div class="loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript -->
+    <script src="script.js"></script>
+</body>
+</html> 

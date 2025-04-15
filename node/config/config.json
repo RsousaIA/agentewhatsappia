@@ -1,0 +1,27 @@
+{
+  "server": {
+    "port": 3000,
+    "host": "localhost"
+  },
+  "whatsapp": {
+    "sessionPath": "./sessions",
+    "puppeteer": {
+      "headless": true,
+      "args": [
+        "--no-sandbox"
+      ]
+    }
+  },
+  "logging": {
+    "level": "info",
+    "file": "./logs/app.log"
+  },
+  "database": {
+    "type": "sqlite",
+    "path": "./data/database.sqlite"
+  },
+  "security": {
+    "jwtSecret": "your-secret-key",
+    "tokenExpiration": "24h"
+  }
+}

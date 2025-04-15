@@ -1,0 +1,203 @@
+# FLUXO DE TRABALHO - SISTEMA DE AGENTES DE IA PARA AVALIAÇÃO DE ATENDIMENTO WHATSAPP
+
+## ESTRUTURA DO BANCO DE DADOS
+
+### 1. Tabela Conversas
+- conversa_id (PK) - Identificador único da conversa
+- cliente_nome - Nome do cliente
+- atendente_nome - Nome do atendente
+- data - Data do atendimento
+- hora_inicio - Horário de início
+- hora_termino - Horário de término
+- tempo_total - Duração total em minutos
+- tempo_max_sem_resposta - Tempo máximo sem resposta do atendente
+- tempo_medio_resposta - Tempo médio de resposta do atendente
+- status - Status do atendimento (em_andamento, encerrado, reaberto)
+- conversa_json - Conteúdo completo da conversa em formato JSON
+
+### 2. Tabela Mensagens
+- mensagem_id (PK) - Identificador único da mensagem
+- conversa_id (FK) - Referência à tabela Conversas
+- remetente - Atendente ou cliente
+- timestamp - Data e hora da mensagem
+- conteudo - Texto da mensagem
+- tipo - Tipo de mensagem (texto, imagem, áudio, etc.)
+
+### 3. Tabela Solicitacoes
+- solicitacao_id (PK) - Identificador único da solicitação
+- conversa_id (FK) - Referência à tabela Conversas
+- mensagem_id (FK) - Referência à mensagem que contém a solicitação
+- descricao - Descrição da solicitação
+- data_solicitacao - Data e hora da solicitação
+- prazo_prometido - Data e hora prometida para atendimento
+- status - Status da solicitação (pendente, atendida, atrasada, cancelada)
+- dias_uteis_prometidos - Número de dias úteis prometidos
+- atendente_nome - Nome do atendente responsável
+- data_atendimento - Data e hora do atendimento (quando concluído)
+
+### 4. Tabela Avaliacoes
+- avaliacao_id (PK) - Identificador único da avaliação
+- conversa_id (FK) - Referência à tabela Conversas
+- comunicacao_nota - Nota para comunicação (0-10)
+- conhecimento_nota - Nota para conhecimento técnico (0-10)
+- empatia_nota - Nota para empatia/cordialidade (0-10) - PESO TRIPLO
+- profissionalismo_nota - Nota para profissionalismo (0-10)
+- resultados_nota - Nota para orientação a resultados (0-10)
+- emocional_nota - Nota para inteligência emocional (0-10)
+- cumprimento_prazos_nota - Nota para cumprimento de prazos (0-10)
+- nota_geral - Nota ponderada geral
+- reclamacoes_cliente - Texto completo de reclamações identificadas
+- solicitacoes_nao_atendidas - Lista de solicitações não atendidas
+- solicitacoes_atrasadas - Lista de solicitações atendidas com atraso
+- data_avaliacao - Data da avaliação
+- status_avaliacao - Status (concluída, pendente de revisão)
+
+### 5. Tabela ConsolidadaAtendimentos
+- consolidado_id (PK) - Identificador único
+- conversa_id (FK) - Referência à tabela Conversas
+- cliente_nome - Nome do cliente
+- atendente_nome - Nome do atendente
+- data - Data do atendimento
+- tempo_total - Duração total
+- nota_geral - Nota geral do atendimento
+- reclamacoes - Reclamações identificadas
+- resumo_atendimento - Resumo gerado do atendimento
+- status_final - Status final (resolvido, não resolvido)
+- solicitacoes_pendentes - Contagem de solicitações pendentes
+- maior_atraso - Maior atraso em dias úteis
+
+## FLUXO DE TRABALHO DETALHADO
+
+### AGENTE 1 (COLETOR) - PROCESSOS CONTÍNUOS
+
+1. **Monitoramento de Mensagens**:
+   - Conecta-se à API do WhatsApp Business
+   - Escuta continuamente por novas mensagens
+   - Processa cada mensagem recebida em tempo real
+
+2. **Identificação de Conversas**:
+   - Verifica se mensagem pertence a conversa existente
+   - Cria nova conversa se necessário
+   - Atualiza status de conversa (em_andamento, reaberto)
+
+3. **Extração de Metadados**:
+   - Identifica nome do cliente e atendente
+   - Registra timestamp preciso de cada mensagem
+   - Atualiza métricas de tempo (tempo_total, tempo_resposta)
+
+4. **Detecção de Solicitações**:
+   - Analisa mensagens do cliente em busca de pedidos/solicitações
+   - Identifica quando atendente promete prazos específicos
+   - Se não houver prazo explícito, aplica regra de 1 dia útil
+   - Registra solicitação na tabela Solicitacoes
+
+5. **Identificação de Encerramento**:
+   - Monitora sinais de encerramento de conversa:
+     * Despedidas formais de ambas as partes
+     * Confirmação de resolução de problema
+     * Agradecimento final do cliente
+     * Inatividade por período significativo (6h+)
+   - Quando identificado, marca conversa como "encerrada"
+   - Sinaliza para Agente 2 que avaliação pode ser iniciada
+
+6. **Persistência de Dados**:
+   - Armazena mensagens na tabela Mensagens
+   - Atualiza metadados na tabela Conversas
+   - Mantém conversa_json atualizado com conteúdo completo
+   - Atualiza status de solicitações pendentes
+
+### AGENTE 2 (AVALIADOR) - PROCESSOS DE AVALIAÇÃO
+
+1. **Verificação de Conversas para Avaliação**:
+   - Verifica periodicamente conversas marcadas como "encerrada"
+   - Filtra apenas conversas não avaliadas ou pendentes de revisão
+   - Prioriza conversas mais antigas primeiro
+
+2. **Análise da Conversa Completa**:
+   - Lê conversa_json para obter contexto completo
+   - Identifica fluxos de interação cliente-atendente
+   - Analisa cronologia e tempos de resposta
+
+3. **Detecção de Reclamações**:
+   - Identifica expressões de insatisfação do cliente
+   - Captura reclamações sobre:
+     * Qualidade do atendimento
+     * Demora nas respostas
+     * Falta de resolução do problema
+     * Tratamento inadequado
+   - Salva texto completo das reclamações identificadas
+
+4. **Verificação de Cumprimento de Solicitações**:
+   - Analisa cada solicitação registrada:
+     * Verifica se foi atendida
+     * Calcula se atendimento ocorreu dentro do prazo
+     * Marca solicitações como "atendida", "atrasada" ou "não atendida"
+   - Penaliza avaliação por solicitações não cumpridas ou atrasadas
+
+5. **Avaliação de Critérios**:
+   - Atribui notas de 0-10 para cada critério:
+     * Comunicação clara e eficaz
+     * Conhecimento técnico
+     * Paciência, empatia, educação e cordialidade (PESO TRIPLO)
+     * Profissionalismo e ética
+     * Orientação para resultados
+     * Inteligência emocional
+     * Cumprimento de prazos
+   - Aplica regra: se houver reclamação sobre cordialidade/empatia, nota geral = 0
+
+6. **Cálculo de Nota Final**:
+   - Aplica pesos para cada critério (triplo para empatia/cordialidade)
+   - Calcula média ponderada das notas
+   - Registra nota_geral na tabela Avaliacoes
+
+7. **Atualização da Tabela Consolidada**:
+   - Preenche registro na tabela ConsolidadaAtendimentos
+   - Sintetiza principais aspectos do atendimento
+   - Gera resumo e status final
+
+### FLUXO DE CONTINUIDADE E REVISÃO
+
+1. **Monitoramento de Reabertura**:
+   - Agente 1 continua monitorando mensagens em conversas "encerradas"
+   - Se nova mensagem chegar após encerramento:
+     * Atualiza status da conversa para "reaberto"
+     * Marca avaliação como "pendente de revisão"
+
+2. **Processo de Reavaliação**:
+   - Quando detectada reabertura, Agente 2:
+     * Recupera avaliação existente
+     * Analisa novas mensagens e contexto completo
+     * Atualiza todas as métricas e notas
+     * Registra nova data_avaliacao
+
+3. **Gerenciamento de Prazos**:
+   - Para cada solicitação pendente:
+     * Verifica diariamente se prazo foi atingido
+     * Atualiza status para "atrasada" quando prazo é excedido
+     * Notifica sobre atrasos em solicitações críticas
+
+4. **Atualização Contínua**:
+   - A cada X horas, verifica conversas "em_andamento" inativas
+     * Se inatividade > 24h, marca como encerrada
+     * Inicia processo de avaliação
+   - A cada Y dias, arquiva conversas antigas
+     * Mantém dados consolidados para relatórios
+
+## MECANISMO DE SINCRONIZAÇÃO ENTRE AGENTES
+
+1. **Filas de Trabalho**:
+   - Fila de mensagens para processamento (Agente 1)
+   - Fila de conversas para avaliação (Agente 2)
+   - Fila de solicitações para monitoramento (compartilhada)
+
+2. **Sinalizadores de Estado**:
+   - Campos de status em cada tabela
+   - Timestamps de última atualização
+   - Flags de prioridade para casos críticos
+
+3. **Sistema de Lock**:
+   - Lock em nível de conversa para evitar conflitos
+   - Timeout para liberação automática de locks
+   - Registro de qual agente está processando cada conversa
+
+Esse fluxo garante que os dois agentes trabalhem de forma coordenada sem interferir um no trabalho do outro, enquanto mantém o rastreamento adequado de conversas, solicitações e avaliações em todas as etapas do processo. 

@@ -1,0 +1,55 @@
+# APIs e Integrações
+requests==2.31.0
+httpx==0.25.2
+websockets==12.0  # Para comunicação WebSocket com Node.js
+python-engineio==4.9.0  # Para comunicação com Node.js
+python-socketio==5.11.1  # Para comunicação com Node.js
+ollama==0.1.0
+
+# Banco de Dados
+sqlalchemy>=2.0.16
+alembic==1.13.1
+pymysql==1.1.0
+
+# Processamento de Texto
+nltk==3.8.1
+langdetect==1.0.9
+textblob==0.17.1
+
+# Web e API
+flask==3.0.0
+flask-restful==0.3.10
+flask-sqlalchemy==3.1.1
+flask-socketio==5.3.6  # Para integração Socket.IO com Flask
+
+# Utilitários
+python-dotenv==1.0.0
+pandas==2.2.0
+numpy==1.26.3
+loguru==0.7.2
+schedule==1.2.1  # Para agendamento de tarefas
+pytz==2023.3
+holidays==0.45
+
+# Selenium e WebDriver
+selenium==4.18.1
+webdriver-manager==4.0.1
+
+# Testes
+pytest==7.4.0
+pytest-cov==4.1.0
+pytest-mock==3.11.1
+pytest-asyncio==0.21.1
+pytest-timeout==2.1.0
+pytest-xdist==3.3.1
+coverage==7.3.0
+
+# Ferramentas de Desenvolvimento
+black==23.10.1   # Formatação de código
+isort==5.12.0    # Organização de imports
+flake8==6.1.0    # Linting
+mypy==1.5.1      # Verificação de tipos
+
+# CI/CD
+pytest-github-actions-annotate-failures==0.2.0  # Integração com GitHub Actions
+python-semantic-release==8.0.0                 # Releases automatizadas 
