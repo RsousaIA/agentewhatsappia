@@ -1,55 +1,52 @@
-# APIs e Integrações
-requests==2.31.0
-httpx==0.25.2
-websockets==12.0  # Para comunicação WebSocket com Node.js
-python-engineio==4.9.0  # Para comunicação com Node.js
-python-socketio==5.11.1  # Para comunicação com Node.js
-ollama==0.1.0
+# Dependências principais
+python-dotenv==1.0.0
+loguru==0.7.0
+pytz==2023.3
+firebase-admin==6.2.0
+SQLAlchemy==2.0.29
 
-# Banco de Dados
-sqlalchemy>=2.0.16
-alembic==1.13.1
-pymysql==1.1.0
+# Dependências de desenvolvimento
+black==24.2.0
+flake8==7.0.0
+isort==5.13.2
+mypy==1.5.1
 
-# Processamento de Texto
-nltk==3.8.1
-langdetect==1.0.9
-textblob==0.17.1
+# Firebase e Armazenamento
+google-cloud-storage==2.14.0
+google-auth==2.28.1
 
 # Web e API
-flask==3.0.0
-flask-restful==0.3.10
-flask-sqlalchemy==3.1.1
-flask-socketio==5.3.6  # Para integração Socket.IO com Flask
+fastapi==0.110.0
+uvicorn==0.27.1
+requests==2.31.0
+websockets==12.0
 
 # Utilitários
-python-dotenv==1.0.0
-pandas==2.2.0
-numpy==1.26.3
-loguru==0.7.2
-schedule==1.2.1  # Para agendamento de tarefas
-pytz==2023.3
-holidays==0.45
-
-# Selenium e WebDriver
-selenium==4.18.1
-webdriver-manager==4.0.1
+python-dateutil==2.8.2
+pydantic==2.6.1
+typing-extensions==4.9.0
 
 # Testes
 pytest==7.4.0
+pytest-asyncio==0.21.1
 pytest-cov==4.1.0
 pytest-mock==3.11.1
-pytest-asyncio==0.21.1
-pytest-timeout==2.1.0
-pytest-xdist==3.3.1
-coverage==7.3.0
 
-# Ferramentas de Desenvolvimento
-black==23.10.1   # Formatação de código
-isort==5.12.0    # Organização de imports
-flake8==6.1.0    # Linting
-mypy==1.5.1      # Verificação de tipos
+# Integração com WhatsApp
+whatsapp-web.js==1.23.0
+qrcode-terminal==0.12.0
 
-# CI/CD
-pytest-github-actions-annotate-failures==0.2.0  # Integração com GitHub Actions
-python-semantic-release==8.0.0                 # Releases automatizadas 
+# Processamento de Linguagem Natural
+nltk==3.8.1
+spacy==3.7.2
+transformers==4.37.2
+
+# Análise de Dados
+pandas==2.2.0
+numpy==1.26.3
+scikit-learn==1.4.0
+
+# Segurança
+cryptography==42.0.2
+python-jose==3.3.0
+passlib==1.7.4 

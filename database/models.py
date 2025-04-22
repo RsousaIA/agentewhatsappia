@@ -1,125 +1,88 @@
-from datetime import datetime
-import enum
-from sqlalchemy import Column, Integer, String, Float, Text, DateTime, Enum, ForeignKey, Boolean
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+# Stub para modelos SQL - desabilitado temporariamente para permitir execução do sistema
+# devido a incompatibilidade com Python 3.13
 
-Base = declarative_base()
+# Enums para status
+class ConversaStatus:
+    NOVO = 'novo'
+    ATIVO = 'ativo'
+    ENCERRADA = 'encerrada'
+    REABERTA = 'reaberta'
 
-class ConversaStatus(enum.Enum):
-    ATIVO = "ativo"
-    FINALIZADO = "finalizado"
-    REABERTO = "reaberto"
+class SolicitacaoStatus:
+    PENDENTE = 'pendente'
+    EM_ANDAMENTO = 'em_andamento'
+    CONCLUIDA = 'concluida'
+    CANCELADA = 'cancelada'
+    ATRASADA = 'atrasada'
 
-class SolicitacaoStatus(enum.Enum):
-    PENDENTE = "pendente"
-    ATENDIDA = "atendida"
-    ATRASADA = "atrasada"
-    NAO_ATENDIDA = "nao_atendida"
+class AvaliacaoStatus:
+    NAO_AVALIADA = 'nao_avaliada'
+    AVALIADA = 'avaliada'
+    REAVALIAR = 'reavaliar'
 
-class AvaliacaoStatus(enum.Enum):
-    PENDENTE = "pendente"
-    CONCLUIDA = "concluida"
-    ATUALIZADA = "atualizada"
+# Classes stub para os modelos
+class Conversa:
+    def __init__(self, **kwargs):
+        self.id = kwargs.get('id')
+        self.cliente_id = kwargs.get('cliente_id')
+        self.status = kwargs.get('status', ConversaStatus.NOVO)
+        self.data_hora_inicio = kwargs.get('data_hora_inicio')
+        self.data_hora_fim = kwargs.get('data_hora_fim')
+        self.foi_reaberta = kwargs.get('foi_reaberta', False)
+        self.agentes_envolvidos = kwargs.get('agentes_envolvidos', [])
+        self.tempo_total = kwargs.get('tempo_total', 0)
+        self.tempo_resposta_medio = kwargs.get('tempo_resposta_medio', 0)
+        self.ultima_mensagem = kwargs.get('ultima_mensagem')
 
-class Conversa(Base):
-    __tablename__ = 'conversas'
-    
-    id = Column(Integer, primary_key=True)
-    cliente_nome = Column(String(100))
-    cliente_telefone = Column(String(20), index=True)
-    atendente_nome = Column(String(100))
-    data_inicio = Column(DateTime, default=datetime.utcnow)
-    data_fim = Column(DateTime, nullable=True)
-    tempo_total = Column(Float, nullable=True)  # em segundos
-    tempo_resposta_maximo = Column(Float, nullable=True)  # em segundos
-    tempo_resposta_medio = Column(Float, nullable=True)  # em segundos
-    status = Column(Enum(ConversaStatus), default=ConversaStatus.ATIVO)
-    conteudo_json = Column(Text, nullable=True)  # JSON da conversa completa
-    ultima_atualizacao = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relacionamentos
-    mensagens = relationship("Mensagem", back_populates="conversa", cascade="all, delete-orphan")
-    solicitacoes = relationship("Solicitacao", back_populates="conversa", cascade="all, delete-orphan")
-    avaliacao = relationship("Avaliacao", back_populates="conversa", uselist=False, cascade="all, delete-orphan")
-    consolidado = relationship("ConsolidadaAtendimento", back_populates="conversa", uselist=False, cascade="all, delete-orphan")
+class Mensagem:
+    def __init__(self, **kwargs):
+        self.id = kwargs.get('id')
+        self.conversa_id = kwargs.get('conversa_id')
+        self.tipo = kwargs.get('tipo', 'texto')
+        self.conteudo = kwargs.get('conteudo', '')
+        self.remetente = kwargs.get('remetente')
+        self.timestamp = kwargs.get('timestamp')
+        self.lida = kwargs.get('lida', False)
+        self.url_midia = kwargs.get('url_midia')
+        self.metadata = kwargs.get('metadata', {})
 
-class Mensagem(Base):
-    __tablename__ = 'mensagens'
-    
-    id = Column(Integer, primary_key=True)
-    conversa_id = Column(Integer, ForeignKey('conversas.id'), index=True)
-    remetente_tipo = Column(String(20))  # 'cliente' ou 'atendente'
-    remetente_nome = Column(String(100))
-    data_hora = Column(DateTime, default=datetime.utcnow)
-    conteudo = Column(Text)
-    tipo_mensagem = Column(String(20), default='texto')  # texto, imagem, áudio, etc.
-    
-    # Relacionamentos
-    conversa = relationship("Conversa", back_populates="mensagens")
-    solicitacoes = relationship("Solicitacao", back_populates="mensagem", cascade="all, delete-orphan")
+class Solicitacao:
+    def __init__(self, **kwargs):
+        self.id = kwargs.get('id')
+        self.conversa_id = kwargs.get('conversa_id')
+        self.descricao = kwargs.get('descricao', '')
+        self.status = kwargs.get('status', SolicitacaoStatus.PENDENTE)
+        self.data_criacao = kwargs.get('data_criacao')
+        self.data_conclusao = kwargs.get('data_conclusao')
+        self.prazo_prometido = kwargs.get('prazo_prometido')
+        self.agente_responsavel = kwargs.get('agente_responsavel')
+        self.prioridade = kwargs.get('prioridade', 'media')
 
-class Solicitacao(Base):
-    __tablename__ = 'solicitacoes'
-    
-    id = Column(Integer, primary_key=True)
-    conversa_id = Column(Integer, ForeignKey('conversas.id'), index=True)
-    mensagem_id = Column(Integer, ForeignKey('mensagens.id'), index=True)
-    descricao = Column(Text)
-    data_solicitacao = Column(DateTime, default=datetime.utcnow)
-    prazo_prometido = Column(DateTime, nullable=True)
-    status = Column(Enum(SolicitacaoStatus), default=SolicitacaoStatus.PENDENTE)
-    dias_uteis_prometidos = Column(Integer, nullable=True)
-    atendente_nome = Column(String(100))
-    data_atendimento = Column(DateTime, nullable=True)
-    
-    # Relacionamentos
-    conversa = relationship("Conversa", back_populates="solicitacoes")
-    mensagem = relationship("Mensagem", back_populates="solicitacoes")
+class Avaliacao:
+    def __init__(self, **kwargs):
+        self.id = kwargs.get('id')
+        self.conversa_id = kwargs.get('conversa_id')
+        self.data_avaliacao = kwargs.get('data_avaliacao')
+        self.nota_comunicacao_clara = kwargs.get('nota_comunicacao_clara', 0)
+        self.nota_conhecimento_tecnico = kwargs.get('nota_conhecimento_tecnico', 0)
+        self.nota_empatia_cordialidade = kwargs.get('nota_empatia_cordialidade', 0)
+        self.nota_profissionalismo_etica = kwargs.get('nota_profissionalismo_etica', 0)
+        self.nota_orientacao_resultados = kwargs.get('nota_orientacao_resultados', 0)
+        self.nota_inteligencia_emocional = kwargs.get('nota_inteligencia_emocional', 0)
+        self.nota_cumprimento_prazos = kwargs.get('nota_cumprimento_prazos', 0)
+        self.nota_geral = kwargs.get('nota_geral', 0)
+        self.reclamacoes = kwargs.get('reclamacoes', [])
+        self.zerou_por_cordialidade = kwargs.get('zerou_por_cordialidade', False)
+        self.detalhes_criticos = kwargs.get('detalhes_criticos', '')
 
-class Avaliacao(Base):
-    __tablename__ = 'avaliacoes'
-    
-    id = Column(Integer, primary_key=True)
-    conversa_id = Column(Integer, ForeignKey('conversas.id'), unique=True)
-    clareza_comunicacao = Column(Integer)  # 0-10
-    conhecimento_tecnico = Column(Integer)  # 0-10
-    paciencia = Column(Integer)  # 0-10
-    profissionalismo = Column(Integer)  # 0-10
-    inteligencia_emocional = Column(Integer)  # 0-10
-    nota_final = Column(Float)  # Média ponderada
-    reclamacao_cliente = Column(Text, nullable=True)
-    observacoes = Column(Text, nullable=True)
-    solicitacoes_nao_atendidas = Column(Integer, default=0)
-    solicitacoes_atrasadas = Column(Integer, default=0)
-    cumprimento_prazos = Column(Integer, default=10)  # 0-10
-    status = Column(Enum(AvaliacaoStatus), default=AvaliacaoStatus.PENDENTE)
-    data_avaliacao = Column(DateTime, default=datetime.utcnow)
-    
-    # Relacionamentos
-    conversa = relationship("Conversa", back_populates="avaliacao")
-
-class ConsolidadaAtendimento(Base):
-    __tablename__ = 'consolidada_atendimentos'
-    
-    id = Column(Integer, primary_key=True)
-    conversa_id = Column(Integer, ForeignKey('conversas.id'), unique=True)
-    cliente_nome = Column(String(100))
-    cliente_telefone = Column(String(20))
-    atendente_nome = Column(String(100))
-    data_inicio = Column(DateTime)
-    data_fim = Column(DateTime, nullable=True)
-    tempo_total = Column(Float, nullable=True)  # em segundos
-    tempo_resposta_maximo = Column(Float, nullable=True)  # em segundos
-    tempo_resposta_medio = Column(Float, nullable=True)  # em segundos
-    quantidade_mensagens = Column(Integer, default=0)
-    quantidade_solicitacoes = Column(Integer, default=0)
-    solicitacoes_atendidas = Column(Integer, default=0)
-    solicitacoes_nao_atendidas = Column(Integer, default=0)
-    solicitacoes_atrasadas = Column(Integer, default=0)
-    nota_final = Column(Float, nullable=True)
-    status_conversa = Column(String(20))
-    status_avaliacao = Column(String(20), default=AvaliacaoStatus.PENDENTE.value)
-    
-    # Relacionamentos
-    conversa = relationship("Conversa", back_populates="consolidado") 
+class ConsolidadaAtendimento:
+    def __init__(self, **kwargs):
+        self.id = kwargs.get('id')
+        self.conversa_id = kwargs.get('conversa_id')
+        self.cliente_nome = kwargs.get('cliente_nome', '')
+        self.agentes_envolvidos = kwargs.get('agentes_envolvidos', [])
+        self.data_hora_inicio = kwargs.get('data_hora_inicio')
+        self.data_hora_encerramento = kwargs.get('data_hora_encerramento')
+        self.nota_geral = kwargs.get('nota_geral', 0)
+        self.status_final = kwargs.get('status_final', '')
+        self.resumo_final = kwargs.get('resumo_final', '') 

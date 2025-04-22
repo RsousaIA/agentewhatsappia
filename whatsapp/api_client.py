@@ -1,7 +1,7 @@
 import os
 import json
 import requests
-import datetime
+from datetime import datetime
 from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
 from loguru import logger
@@ -43,7 +43,7 @@ class WhatsAppClient:
         
         logger.info(f"Cliente da API do WhatsApp inicializado: Número {self.phone_number_id}")
         
-    def get_new_messages(self, since: Optional[datetime.datetime] = None, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_new_messages(self, since: Optional[datetime] = None, limit: int = 100) -> List[Dict[str, Any]]:
         """
         Obtém novas mensagens do WhatsApp.
         

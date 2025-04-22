@@ -1,172 +1,344 @@
-"""Testes para o CollectorAgent."""
-import json
-from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch
-
 import pytest
-from loguru import logger
-from sqlalchemy import select
-
-from agent.collector_agent import CollectorAgent
-from database.models import Conversa, Mensagem, Solicitacao
-from whatsapp.api_client import WhatsAppAPIClient
-
+from datetime import datetime, timedelta
+from unittest.mock import Mock, patch
+from agent.collectors.collector_agent import CollectorAgent
+from database.firebase_db import init_firebase, get_firestore_db
 
 @pytest.fixture
-def mock_whatsapp_client():
-    """Mock do cliente WhatsApp."""
-    client = MagicMock(spec=WhatsAppAPIClient)
-    client.get_messages.return_value = []
-    return client
+def collector_agent():
+    """Fixture que retorna uma instância do CollectorAgent para testes."""
+    with patch('database.firebase_db.init_firebase'), \
+         patch('database.firebase_db.get_firestore_db'):
+        agent = CollectorAgent()
+        return agent
 
-
-@pytest.fixture
-def collector_agent(db_session, mock_whatsapp_client, temp_env_file):
-    """Fixture que cria uma instância do CollectorAgent para testes."""
-    agent = CollectorAgent()
-    agent.db_session = db_session
-    agent.whatsapp_client = mock_whatsapp_client
-    return agent
-
-
-def test_init_collector_agent(collector_agent):
+def test_collector_agent_initialization(collector_agent):
     """Testa a inicialização do CollectorAgent."""
-    assert collector_agent is not None
-    assert collector_agent.db_session is not None
-    assert collector_agent.whatsapp_client is not None
-    assert collector_agent.check_interval == 60
-    assert collector_agent.inactivity_threshold == 3600
+    assert collector_agent._message_queue is not None
+    assert collector_agent._processing_thread is None
+    assert collector_agent._cleanup_thread is None
+    assert collector_agent._running is False
+    assert collector_agent._inactive_timeout == 1800  # 30 minutos
+    assert collector_agent._cleanup_interval == 300   # 5 minutos
 
-
-def test_start_stop_collector_agent(collector_agent):
-    """Testa os métodos start e stop do CollectorAgent."""
+def test_start_stop(collector_agent):
+    """Testa o início e parada do agente."""
     collector_agent.start()
-    assert collector_agent.is_running
+    assert collector_agent._running is True
+    assert collector_agent._processing_thread is not None
+    assert collector_agent._cleanup_thread is not None
+    
     collector_agent.stop()
-    assert not collector_agent.is_running
+    assert collector_agent._running is False
+    assert collector_agent._processing_thread is None
+    assert collector_agent._cleanup_thread is None
 
-
-@pytest.mark.parametrize(
-    "message_type,message_content",
-    [
-        ("text", {"body": "Olá, preciso de ajuda"}),
-        ("image", {"caption": "Imagem do problema", "id": "123"}),
-        ("document", {"caption": "Relatório", "filename": "report.pdf", "id": "456"}),
-    ],
-)
-def test_process_message(collector_agent, message_type, message_content):
-    """Testa o processamento de diferentes tipos de mensagens."""
+def test_process_message(collector_agent):
+    """Testa o processamento de mensagens."""
     message = {
-        "type": message_type,
-        "from": "5511999999999",
-        "timestamp": datetime.now().timestamp(),
-        message_type: message_content,
+        'id': 'test_message',
+        'conversation_id': 'test_conversation',
+        'content': 'Test message',
+        'timestamp': datetime.now(),
+        'type': 'USER'
     }
-
-    collector_agent._process_message(message)
     
-    result = collector_agent.db_session.execute(
-        select(Mensagem).where(Mensagem.tipo == message_type)
-    ).scalar_one_or_none()
-    
-    assert result is not None
-    assert result.tipo == message_type
-    if message_type == "text":
-        assert result.conteudo == message_content["body"]
-    else:
-        assert json.loads(result.conteudo)["caption"] == message_content["caption"]
+    with patch('database.firebase_db.save_message') as mock_save:
+        collector_agent.process_message(message)
+        
+        # Verifica se a mensagem foi adicionada à fila
+        assert not collector_agent._message_queue.empty()
+        
+        # Verifica se a mensagem foi salva no Firebase
+        mock_save.assert_called_once()
 
-
-def test_check_inactive_conversations(collector_agent):
-    """Testa a verificação de conversas inativas."""
-    # Criar uma conversa antiga
-    conversa = Conversa(
-        cliente_nome="Cliente Teste",
-        cliente_telefone="5511999999999",
-        status="em_andamento",
-        ultima_interacao=datetime.now() - timedelta(hours=2),
-    )
-    collector_agent.db_session.add(conversa)
-    collector_agent.db_session.commit()
-
-    collector_agent._check_inactive_conversations()
-    
-    updated_conversa = collector_agent.db_session.get(Conversa, conversa.id)
-    assert updated_conversa.status == "finalizada"
-
-
-def test_detect_request(collector_agent):
-    """Testa a detecção de solicitações em mensagens."""
-    message = {
-        "type": "text",
-        "from": "5511999999999",
-        "timestamp": datetime.now().timestamp(),
-        "text": {"body": "Preciso que você me ajude com um problema urgente"},
-    }
-
-    conversa = Conversa(
-        cliente_nome="Cliente Teste",
-        cliente_telefone="5511999999999",
-        status="em_andamento",
-    )
-    collector_agent.db_session.add(conversa)
-    collector_agent.db_session.commit()
-
-    collector_agent._process_message(message)
-    
-    result = collector_agent.db_session.execute(
-        select(Solicitacao).join(Conversa)
-        .where(Conversa.cliente_telefone == "5511999999999")
-    ).scalar_one_or_none()
-    
-    assert result is not None
-    assert result.status == "pendente"
-    assert "problema urgente" in result.descricao
-
-
-@patch("agent.collector_agent.logger")
-def test_error_handling(mock_logger, collector_agent):
-    """Testa o tratamento de erros durante o processamento de mensagens."""
-    collector_agent.whatsapp_client.get_messages.side_effect = Exception("Erro de API")
-    
-    collector_agent._fetch_new_messages()
-    
-    mock_logger.error.assert_called_once()
-
-
-def test_conversation_metrics(collector_agent):
-    """Testa o cálculo de métricas da conversa."""
-    # Criar uma conversa com mensagens
-    conversa = Conversa(
-        cliente_nome="Cliente Teste",
-        cliente_telefone="5511999999999",
-        status="em_andamento",
-        inicio=datetime.now() - timedelta(minutes=30),
-    )
-    collector_agent.db_session.add(conversa)
-    
-    # Adicionar mensagens
-    mensagens = [
-        Mensagem(
-            conversa=conversa,
-            remetente="cliente",
-            conteudo="Olá, preciso de ajuda",
-            tipo="text",
-            timestamp=datetime.now() - timedelta(minutes=25),
-        ),
-        Mensagem(
-            conversa=conversa,
-            remetente="atendente",
-            conteudo="Olá! Como posso ajudar?",
-            tipo="text",
-            timestamp=datetime.now() - timedelta(minutes=20),
-        ),
+def test_process_messages_queue(collector_agent):
+    """Testa o processamento da fila de mensagens."""
+    messages = [
+        {
+            'id': f'test_message_{i}',
+            'conversation_id': 'test_conversation',
+            'content': f'Test message {i}',
+            'timestamp': datetime.now(),
+            'type': 'USER'
+        }
+        for i in range(3)
     ]
-    collector_agent.db_session.add_all(mensagens)
-    collector_agent.db_session.commit()
-
-    collector_agent._update_conversation_metrics(conversa)
     
-    assert conversa.tempo_primeira_resposta is not None
-    assert conversa.tempo_medio_resposta is not None
-    assert conversa.total_mensagens == 2 
+    with patch('database.firebase_db.save_message') as mock_save:
+        # Adiciona mensagens à fila
+        for msg in messages:
+            collector_agent._message_queue.put(msg)
+        
+        # Processa a fila
+        collector_agent._process_messages()
+        
+        # Verifica se todas as mensagens foram salvas
+        assert mock_save.call_count == 3
+
+def test_should_close_conversation(collector_agent):
+    """Testa o método de detecção de encerramento de conversa com Ollama."""
+    # Cria mensagens de teste com despedida
+    messages = [
+        {
+            'remetente': 'cliente',
+            'content': 'Olá, preciso de ajuda',
+            'timestamp': datetime.now() - timedelta(minutes=10)
+        },
+        {
+            'remetente': 'atendente',
+            'content': 'Como posso ajudar?',
+            'timestamp': datetime.now() - timedelta(minutes=8)
+        },
+        {
+            'remetente': 'cliente',
+            'content': 'Obrigado pela ajuda',
+            'timestamp': datetime.now() - timedelta(minutes=5)
+        },
+        {
+            'remetente': 'atendente',
+            'content': 'Por nada, tenha um bom dia!',
+            'timestamp': datetime.now() - timedelta(minutes=2)
+        }
+    ]
+    
+    # Mock para o Ollama
+    ollama_result = {
+        'should_close': True,
+        'confidence': 90,
+        'reason': 'despedida'
+    }
+    
+    # Substitui o ollama do collector_agent por um mock
+    collector_agent.ollama = Mock()
+    collector_agent.ollama.should_close_conversation.return_value = ollama_result
+    
+    # Executa o método de detecção de encerramento
+    result = collector_agent._should_close_conversation(messages)
+    
+    # Verifica se o Ollama foi chamado corretamente
+    collector_agent.ollama.should_close_conversation.assert_called_once()
+    
+    # Verifica o resultado
+    assert result['should_close'] is True
+    assert result['reason'] == 'despedida'
+
+def test_should_close_conversation_with_error(collector_agent):
+    """Testa o método de detecção quando há erro no Ollama (fallback para palavras de despedida)."""
+    # Cria mensagens de teste com despedida
+    messages = [
+        {
+            'remetente': 'cliente',
+            'content': 'Olá, preciso de ajuda',
+            'timestamp': datetime.now() - timedelta(minutes=10)
+        },
+        {
+            'remetente': 'atendente',
+            'content': 'Como posso ajudar?',
+            'timestamp': datetime.now() - timedelta(minutes=8)
+        },
+        {
+            'remetente': 'cliente',
+            'content': 'Já resolvi, muito obrigado',
+            'timestamp': datetime.now() - timedelta(minutes=5)
+        }
+    ]
+    
+    # Configura o mock para lançar exceção
+    collector_agent.ollama = Mock()
+    collector_agent.ollama.should_close_conversation.side_effect = Exception("Erro de conexão")
+    
+    # Executa o método de detecção de encerramento
+    result = collector_agent._should_close_conversation(messages)
+    
+    # Verifica se o resultado do fallback indica encerramento devido a palavras de despedida
+    assert result['should_close'] is True
+    assert result['reason'] == 'despedida'
+
+def test_should_close_conversation_active(collector_agent):
+    """Testa o método de detecção para conversas ainda ativas."""
+    # Cria mensagens de teste sem despedida
+    messages = [
+        {
+            'remetente': 'cliente',
+            'content': 'Olá, preciso de ajuda',
+            'timestamp': datetime.now() - timedelta(minutes=10)
+        },
+        {
+            'remetente': 'atendente',
+            'content': 'Como posso ajudar?',
+            'timestamp': datetime.now() - timedelta(minutes=8)
+        },
+        {
+            'remetente': 'cliente',
+            'content': 'Estou com problema no produto',
+            'timestamp': datetime.now() - timedelta(minutes=5)
+        }
+    ]
+    
+    # Mock para o Ollama
+    ollama_result = {
+        'should_close': False,
+        'confidence': 85,
+        'reason': 'conversa_ativa'
+    }
+    
+    # Substitui o ollama do collector_agent por um mock
+    collector_agent.ollama = Mock()
+    collector_agent.ollama.should_close_conversation.return_value = ollama_result
+    
+    # Executa o método de detecção de encerramento
+    result = collector_agent._should_close_conversation(messages)
+    
+    # Verifica se o resultado indica que a conversa ainda está ativa
+    assert result['should_close'] is False
+    assert result['reason'] == 'conversa_ativa'
+
+def test_cleanup_inactive_conversations(collector_agent):
+    """Testa a limpeza de conversas inativas."""
+    # Cria conversas de teste
+    active_conversation = {
+        'id': 'active_conversation',
+        'last_message_time': datetime.now(),
+        'status': 'ACTIVE'
+    }
+    
+    inactive_conversation = {
+        'id': 'inactive_conversation',
+        'last_message_time': datetime.now() - timedelta(hours=1),
+        'status': 'ACTIVE'
+    }
+    
+    with patch('database.firebase_db.get_conversations') as mock_get, \
+         patch('database.firebase_db.update_conversation_status') as mock_update:
+        
+        mock_get.return_value = [active_conversation, inactive_conversation]
+        
+        # Executa a limpeza
+        collector_agent._cleanup_inactive_conversations()
+        
+        # Verifica se apenas a conversa inativa foi atualizada
+        mock_update.assert_called_once_with(
+            inactive_conversation['id'],
+            'CLOSED',
+            'Inatividade prolongada'
+        )
+
+def test_handle_message_error(collector_agent):
+    """Testa o tratamento de erros no processamento de mensagens."""
+    invalid_message = {
+        'id': 'invalid_message',
+        'conversation_id': None,  # Campo obrigatório faltando
+        'content': 'Test message',
+        'timestamp': datetime.now(),
+        'type': 'USER'
+    }
+    
+    with patch('database.firebase_db.save_message') as mock_save:
+        collector_agent.process_message(invalid_message)
+        
+        # Verifica se a mensagem foi adicionada à fila
+        assert not collector_agent._message_queue.empty()
+        
+        # Verifica se houve tentativa de salvar no Firebase
+        mock_save.assert_not_called()
+
+def test_conversation_creation(collector_agent):
+    """Testa a criação de novas conversas."""
+    message = {
+        'id': 'test_message',
+        'conversation_id': 'new_conversation',
+        'content': 'Test message',
+        'timestamp': datetime.now(),
+        'type': 'USER'
+    }
+    
+    with patch('database.firebase_db.get_conversation') as mock_get, \
+         patch('database.firebase_db.create_conversation') as mock_create:
+        
+        mock_get.return_value = None  # Simula conversa inexistente
+        
+        collector_agent.process_message(message)
+        
+        # Verifica se a conversa foi criada
+        mock_create.assert_called_once()
+
+def test_message_processing_thread(collector_agent):
+    """Testa o funcionamento da thread de processamento de mensagens."""
+    collector_agent.start()
+    
+    message = {
+        'id': 'test_message',
+        'conversation_id': 'test_conversation',
+        'content': 'Test message',
+        'timestamp': datetime.now(),
+        'type': 'USER'
+    }
+    
+    with patch('database.firebase_db.save_message') as mock_save:
+        collector_agent.process_message(message)
+        
+        # Aguarda um pouco para a thread processar
+        import time
+        time.sleep(0.1)
+        
+        # Verifica se a mensagem foi processada
+        mock_save.assert_called_once()
+    
+    collector_agent.stop()
+
+def test_cleanup_thread(collector_agent):
+    """Testa o funcionamento da thread de limpeza."""
+    collector_agent.start()
+    
+    with patch('database.firebase_db.get_conversations') as mock_get, \
+         patch('database.firebase_db.update_conversation_status') as mock_update:
+        
+        mock_get.return_value = []
+        
+        # Aguarda um pouco para a thread executar
+        import time
+        time.sleep(0.1)
+        
+        # Verifica se a verificação foi feita
+        mock_get.assert_called()
+    
+    collector_agent.stop()
+
+def test_concurrent_message_processing(collector_agent):
+    """Testa o processamento concorrente de mensagens."""
+    collector_agent.start()
+    
+    messages = [
+        {
+            'id': f'test_message_{i}',
+            'conversation_id': 'test_conversation',
+            'content': f'Test message {i}',
+            'timestamp': datetime.now(),
+            'type': 'USER'
+        }
+        for i in range(10)
+    ]
+    
+    with patch('database.firebase_db.save_message') as mock_save:
+        # Adiciona mensagens concorrentemente
+        import threading
+        
+        def add_messages():
+            for msg in messages:
+                collector_agent.process_message(msg)
+        
+        threads = [threading.Thread(target=add_messages) for _ in range(3)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        
+        # Aguarda o processamento
+        import time
+        time.sleep(0.1)
+        
+        # Verifica se todas as mensagens foram processadas
+        assert mock_save.call_count == 30  # 10 mensagens * 3 threads
+    
+    collector_agent.stop() 

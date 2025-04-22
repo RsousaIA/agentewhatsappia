@@ -1,0 +1,19 @@
+2025/04/16-14:35:48.942 7c0 Reusing MANIFEST D:\Projetos Python\AgenteSuporteWhatsapp\whatsapp-sessions\session-whatsapp-test\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2025/04/16-14:35:48.942 7c0 Recovering log #94
+2025/04/16-14:35:48.943 7c0 Reusing old log D:\Projetos Python\AgenteSuporteWhatsapp\whatsapp-sessions\session-whatsapp-test\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/000094.log 
+2025/04/16-14:35:50.739 32c8 Level-0 table #103: started
+2025/04/16-14:35:50.766 32c8 Level-0 table #103: 23657 bytes OK
+2025/04/16-14:35:50.783 32c8 Delete type=0 #94
+2025/04/16-14:35:50.783 32c8 Manual compaction at level-0 from '\x00\x1b\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x1c\x00\x00\x00' @ 0 : 0; will stop at (end)
+2025/04/16-14:35:52.568 7c0 Compacting 1@1 + 4@2 files
+2025/04/16-14:35:52.656 7c0 Generated table #104@1: 30675 keys, 2191512 bytes
+2025/04/16-14:35:52.766 7c0 Generated table #105@1: 9704 keys, 2179246 bytes
+2025/04/16-14:35:52.876 7c0 Generated table #106@1: 44815 keys, 2218425 bytes
+2025/04/16-14:35:52.954 7c0 Generated table #107@1: 43170 keys, 934795 bytes
+2025/04/16-14:35:52.954 7c0 Compacted 1@1 + 4@2 files => 7523978 bytes
+2025/04/16-14:35:52.986 7c0 compacted to: files[ 0 0 4 0 0 0 0 ]
+2025/04/16-14:35:52.986 7c0 Delete type=2 #97
+2025/04/16-14:35:52.986 7c0 Delete type=2 #98
+2025/04/16-14:35:52.986 7c0 Delete type=2 #99
+2025/04/16-14:35:52.986 7c0 Delete type=2 #100
+2025/04/16-14:35:52.986 7c0 Delete type=2 #103

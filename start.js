@@ -17,7 +17,7 @@ app.use(express.json());
 // Rotas da API
 app.get('/api/metricas/todas-metricas', async (req, res) => {
     try {
-        const result = await executarComando(`"${process.cwd()}\\venv\\Scripts\\activate.bat" && set PYTHONPATH=${process.cwd()} && python "${process.cwd()}\\utils/get_metricas.py"`);
+        const result = await executarComando(`"${process.cwd()}\\venv\\Scripts\\activate.bat" && set PYTHONPATH=${process.cwd()} && python "${process.cwd()}\\src\\utils\\get_metricas.py"`);
         res.json(JSON.parse(result));
     } catch (error) {
         console.error(`❌ Erro ao obter métricas: ${error.message}`);
@@ -27,7 +27,7 @@ app.get('/api/metricas/todas-metricas', async (req, res) => {
 
 app.get('/api/metricas/avaliacoes', async (req, res) => {
     try {
-        const result = await executarComando(`"${process.cwd()}\\venv\\Scripts\\activate.bat" && set PYTHONPATH=${process.cwd()} && python "${process.cwd()}\\utils/get_avaliacoes.py"`);
+        const result = await executarComando(`"${process.cwd()}\\venv\\Scripts\\activate.bat" && set PYTHONPATH=${process.cwd()} && python "${process.cwd()}\\src\\utils\\get_avaliacoes.py"`);
         res.json(JSON.parse(result));
     } catch (error) {
         console.error(`❌ Erro ao obter avaliações: ${error.message}`);
@@ -37,7 +37,7 @@ app.get('/api/metricas/avaliacoes', async (req, res) => {
 
 app.get('/api/metricas/eficiencia-atendentes', async (req, res) => {
     try {
-        const result = await executarComando(`"${process.cwd()}\\venv\\Scripts\\activate.bat" && set PYTHONPATH=${process.cwd()} && python "${process.cwd()}\\utils/get_eficiencia.py"`);
+        const result = await executarComando(`"${process.cwd()}\\venv\\Scripts\\activate.bat" && set PYTHONPATH=${process.cwd()} && python "${process.cwd()}\\src\\utils\\get_eficiencia.py"`);
         res.json(JSON.parse(result));
     } catch (error) {
         console.error(`❌ Erro ao obter eficiência dos atendentes: ${error.message}`);
@@ -124,7 +124,7 @@ async function iniciarAgenteColetor() {
     // O servidor Node.js já está rodando em segundo plano
     // Iniciar o agente Python em segundo plano (usando start em vez de await)
     try {
-        const comando = `start cmd /c "title Agente Coletor && "${process.cwd()}\\venv\\Scripts\\activate.bat" && set PYTHONPATH=${process.cwd()} && python -c "from agent.collector_agent import get_collector_agent; agent = get_collector_agent(); agent.start()""`;
+        const comando = `start cmd /c "title Agente Coletor && "${process.cwd()}\\venv\\Scripts\\activate.bat" && set PYTHONPATH=${process.cwd()} && python -c "from src.agents.collectors.collector_agent import get_collector_agent; agent = get_collector_agent(); agent.start()""`;
         
         // Executar sem aguardar (para não bloquear)
         exec(comando, (error, stdout, stderr) => {
@@ -146,7 +146,7 @@ async function iniciarAgenteColetor() {
 async function iniciarAgenteAvaliador() {
     console.log('\n📊 Iniciando Agente Avaliador...');
     try {
-        const comando = `start cmd /c "title Agente Avaliador && "${process.cwd()}\\venv\\Scripts\\activate.bat" && set PYTHONPATH=${process.cwd()} && python -c "from agent.evaluator_agent import get_evaluator_agent; agent = get_evaluator_agent(); agent.start()""`;
+        const comando = `start cmd /c "title Agente Avaliador && "${process.cwd()}\\venv\\Scripts\\activate.bat" && set PYTHONPATH=${process.cwd()} && python -c "from src.agents.evaluators.evaluator_agent import get_evaluator_agent; agent = get_evaluator_agent(); agent.start()""`;
         
         // Executar sem aguardar (para não bloquear)
         exec(comando, (error, stdout, stderr) => {

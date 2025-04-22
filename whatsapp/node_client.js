@@ -4,6 +4,27 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 3000;
+const fs = require('fs');
+const path = require('path');
+
+// Configurações para comunicação com Python
+const PYTHON_SERVER_URL = process.env.PYTHON_SERVER_URL || 'http://127.0.0.1:5000';
+const axios = require('axios');
+
+// Configuração para armazenamento temporário de mensagens quando o servidor Python estiver offline
+const MENSAGENS_PENDENTES_DIR = path.join(__dirname, '../data/mensagens_pendentes');
+let serverRetryCount = 0;
+const MAX_RETRY_COUNT = 5;
+
+// Garantir que o diretório de mensagens pendentes exista
+if (!fs.existsSync(MENSAGENS_PENDENTES_DIR)) {
+    fs.mkdirSync(MENSAGENS_PENDENTES_DIR, { recursive: true });
+    console.log(`Diretório para mensagens pendentes criado: ${MENSAGENS_PENDENTES_DIR}`);
+}
+
+// Importação do Firebase
+const admin = require('firebase-admin');
+let firebaseInitialized = false;
 
 console.log("==============================================");
 console.log("      INICIANDO SERVIDOR WHATSAPP NODE.JS      ");
@@ -27,6 +48,170 @@ const client = new Client({
 // Variáveis para callbacks
 let messageCallback = null;
 let qrCallback = null;
+
+// Função para inicializar o Firebase
+function initFirebase() {
+    if (firebaseInitialized) return;
+    
+    try {
+        // Verificar se as credenciais estão definidas como variável de ambiente ou arquivo
+        const credPath = process.env.FIREBASE_CREDENTIALS_PATH;
+        const credJson = process.env.FIREBASE_CREDENTIALS_JSON;
+        
+        let serviceAccount;
+        
+        if (credJson) {
+            // Usar credenciais como JSON string
+            serviceAccount = JSON.parse(credJson);
+        } else if (credPath) {
+            // Usar arquivo de credenciais
+            serviceAccount = require(credPath);
+        } else {
+            console.error("Credenciais do Firebase não configuradas");
+            return;
+        }
+        
+        // Inicializar o Firebase
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+        });
+        
+        firebaseInitialized = true;
+        console.log("Firebase inicializado com sucesso");
+    } catch (error) {
+        console.error(`Erro ao inicializar Firebase: ${error.message}`);
+    }
+}
+
+// Função para salvar mensagem no Firebase
+async function saveMessageToFirebase(messageData) {
+    if (!firebaseInitialized) {
+        initFirebase();
+    }
+    
+    if (!firebaseInitialized) {
+        console.error("Firebase não inicializado. Não é possível salvar mensagem.");
+        return;
+    }
+    
+    try {
+        const db = admin.firestore();
+        
+        // Preparar dados
+        const messageId = messageData.id;
+        const fromNumber = messageData.from.split('@')[0];
+        const toNumber = messageData.to ? messageData.to.split('@')[0] : '';
+        const isFromClient = messageData.from !== messageData.to;
+        const clientPhone = isFromClient ? fromNumber : toNumber;
+        
+        // Verificar se já existe uma conversa ativa para este cliente
+        const conversationQuery = await db.collection('conversas')
+            .where('cliente_telefone', '==', clientPhone)
+            .where('status', '==', 'ativo')
+            .limit(1)
+            .get();
+        
+        let conversationId;
+        
+        if (conversationQuery.empty) {
+            // Criar nova conversa
+            const conversationRef = db.collection('conversas').doc();
+            await conversationRef.set({
+                cliente_telefone: clientPhone,
+                status: 'ativo',
+                data_inicio: admin.firestore.FieldValue.serverTimestamp(),
+                ultima_atualizacao: admin.firestore.FieldValue.serverTimestamp()
+            });
+            conversationId = conversationRef.id;
+            console.log(`Nova conversa criada: ${conversationId}`);
+        } else {
+            // Usar conversa existente
+            conversationId = conversationQuery.docs[0].id;
+        }
+        
+        // Salvar mensagem
+        await db.collection('mensagens').doc(messageId).set({
+            conversa_id: conversationId,
+            message_id: messageId,
+            remetente_tipo: isFromClient ? 'cliente' : 'atendente',
+            data_hora: new Date(messageData.timestamp * 1000),
+            conteudo: messageData.body,
+            tipo_mensagem: messageData.type || 'texto'
+        });
+        
+        // Atualizar timestamp da conversa
+        await db.collection('conversas').doc(conversationId).update({
+            ultima_atualizacao: admin.firestore.FieldValue.serverTimestamp()
+        });
+        
+        console.log(`Mensagem ${messageId} salva no Firebase com sucesso`);
+    } catch (error) {
+        console.error(`Erro ao salvar mensagem no Firebase: ${error.message}`);
+    }
+}
+
+// Função para salvar mensagem temporariamente
+function salvarMensagemLocalmente(messageData) {
+    try {
+        const messageId = messageData.id;
+        const filePath = path.join(MENSAGENS_PENDENTES_DIR, `msg_${messageId}.json`);
+        fs.writeFileSync(filePath, JSON.stringify(messageData, null, 2));
+        console.log(`📥 Mensagem ${messageId} salva localmente para processamento posterior`);
+        return true;
+    } catch (error) {
+        console.error(`❌ Erro ao salvar mensagem localmente: ${error.message}`);
+        return false;
+    }
+}
+
+// Função para verificar servidor Python
+async function verificarServidorPython() {
+    try {
+        await axios.get(`${PYTHON_SERVER_URL}/api/status`);
+        console.log('✅ Servidor Python está online');
+        return true;
+    } catch (error) {
+        console.error(`❌ Servidor Python não está disponível: ${error.message}`);
+        return false;
+    }
+}
+
+// Função para enviar mensagens pendentes
+async function enviarMensagensPendentes() {
+    try {
+        // Verificar se o servidor está online
+        const servidorOnline = await verificarServidorPython();
+        if (!servidorOnline) return;
+        
+        // Ler diretório de mensagens pendentes
+        const files = fs.readdirSync(MENSAGENS_PENDENTES_DIR);
+        
+        if (files.length > 0) {
+            console.log(`🔄 Enviando ${files.length} mensagens pendentes...`);
+            
+            for (const file of files) {
+                try {
+                    const filePath = path.join(MENSAGENS_PENDENTES_DIR, file);
+                    const messageData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                    
+                    // Tentar enviar para o servidor Python
+                    await axios.post(`${PYTHON_SERVER_URL}/api/webhook/message`, messageData);
+                    
+                    // Se enviou com sucesso, remover arquivo
+                    fs.unlinkSync(filePath);
+                    console.log(`✅ Mensagem pendente ${file} processada e removida com sucesso`);
+                } catch (error) {
+                    console.error(`❌ Erro ao processar mensagem pendente ${file}: ${error.message}`);
+                }
+            }
+        }
+    } catch (error) {
+        console.error(`❌ Erro ao verificar mensagens pendentes: ${error.message}`);
+    }
+}
+
+// Verificar mensagens pendentes a cada 30 segundos
+setInterval(enviarMensagensPendentes, 30000);
 
 // Eventos do cliente
 client.on('qr', (qr) => {
@@ -59,9 +244,50 @@ client.on('message', async (message) => {
     
     console.log(`📱 Nova mensagem de ${message.from}: ${message.body}`);
     
+    // Desativado temporariamente (será usado quando migrarmos para Firebase)
+    // await saveMessageToFirebase(messageData);
+    
     // Callback para Python (se houver)
     if (messageCallback) {
         messageCallback(messageData);
+    }
+    
+    // Enviar notificação para o servidor Python
+    try {
+        console.log(`📤 Tentando enviar mensagem para Python API: ${message.id.id}`);
+        console.log(`URL: ${PYTHON_SERVER_URL}/api/webhook/message`);
+        console.log(`Dados: ${JSON.stringify(messageData)}`);
+        
+        await axios.post(`${PYTHON_SERVER_URL}/api/webhook/message`, messageData);
+        console.log(`✅ Mensagem enviada para Python API: ${message.id.id}`);
+        serverRetryCount = 0; // Resetar contador de tentativas
+    } catch (error) {
+        console.error(`❌ Erro ao enviar mensagem para Python: ${error.message}`);
+        console.error('Detalhes do erro:', error.response ? error.response.data : 'Sem resposta');
+        
+        // Salvar mensagem localmente para tentar novamente depois
+        salvarMensagemLocalmente(messageData);
+        
+        // Incrementar contador de falhas
+        serverRetryCount++;
+        
+        // Se servidor falhar muitas vezes, tentar reiniciar
+        if (serverRetryCount >= MAX_RETRY_COUNT) {
+            console.log(`⚠️ Servidor Python falhou ${MAX_RETRY_COUNT} vezes, tentando reiniciar...`);
+            try {
+                const { exec } = require('child_process');
+                exec('start cmd /c "title Servidor Flask && cd /d %CD% && venv\\Scripts\\activate.bat && python app.py"', (err) => {
+                    if (err) {
+                        console.error(`❌ Erro ao tentar reiniciar servidor Flask: ${err.message}`);
+                    } else {
+                        console.log('🔄 Comando para reiniciar Flask executado');
+                        serverRetryCount = 0;
+                    }
+                });
+            } catch (restartError) {
+                console.error(`❌ Erro ao tentar reiniciar servidor Flask: ${restartError.message}`);
+            }
+        }
     }
 });
 
@@ -169,6 +395,112 @@ app.post('/register-message-callback', (req, res) => {
     };
     res.json({ success: true });
 });
+
+// Rota para obter métricas do Firebase
+app.get('/api/metricas/todas-metricas', async (req, res) => {
+    if (!firebaseInitialized) {
+        initFirebase();
+    }
+    
+    if (!firebaseInitialized) {
+        return res.status(500).json({ error: "Firebase não inicializado" });
+    }
+    
+    try {
+        const db = admin.firestore();
+        
+        // Contar total de conversas
+        const conversasSnapshot = await db.collection('conversas').get();
+        const totalConversas = conversasSnapshot.size;
+        
+        // Contar mensagens
+        const mensagensSnapshot = await db.collection('mensagens').get();
+        const totalMensagens = mensagensSnapshot.size;
+        
+        // Métricas
+        const metricas = {
+            total_atendimentos: totalConversas,
+            total_mensagens: totalMensagens,
+            tempo_medio_resolucao: 0, // Implementar cálculo real posteriormente
+            mensagens_por_conversa: totalConversas > 0 ? totalMensagens / totalConversas : 0
+        };
+        
+        res.json(metricas);
+    } catch (error) {
+        console.error(`Erro ao obter métricas: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Rota para listar conversas
+app.get('/api/conversas', async (req, res) => {
+    if (!firebaseInitialized) {
+        initFirebase();
+    }
+    
+    if (!firebaseInitialized) {
+        return res.status(500).json({ error: "Firebase não inicializado" });
+    }
+    
+    try {
+        const db = admin.firestore();
+        const conversasRef = db.collection('conversas')
+            .orderBy('ultima_atualizacao', 'desc')
+            .limit(50);
+        
+        const snapshot = await conversasRef.get();
+        
+        const conversas = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            conversas.push({
+                id: doc.id,
+                ...data
+            });
+        });
+        
+        res.json(conversas);
+    } catch (error) {
+        console.error(`Erro ao listar conversas: ${error.message}`);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Rota para status de mensagens pendentes
+app.get('/api/mensagens-pendentes', (req, res) => {
+    try {
+        const files = fs.readdirSync(MENSAGENS_PENDENTES_DIR);
+        res.json({
+            count: files.length,
+            messages: files.map(file => {
+                try {
+                    const data = JSON.parse(fs.readFileSync(path.join(MENSAGENS_PENDENTES_DIR, file), 'utf8'));
+                    return {
+                        id: data.id,
+                        from: data.from,
+                        body: data.body && data.body.length > 30 ? data.body.substring(0, 30) + '...' : data.body,
+                        timestamp: data.timestamp
+                    };
+                } catch (e) {
+                    return { id: file, error: e.message };
+                }
+            })
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Adicionar rota de status para o servidor Python verificar
+app.get('/api/status', (req, res) => {
+    res.json({
+        status: 'online',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Força o envio de mensagens pendentes na inicialização
+setTimeout(enviarMensagensPendentes, 10000);
 
 // Inicia o servidor
 app.listen(port, () => {

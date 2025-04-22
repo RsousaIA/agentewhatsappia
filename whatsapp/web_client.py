@@ -1,7 +1,7 @@
 import os
 import json
 import time
-import datetime
+from datetime import datetime
 import re
 from typing import Dict, Any, List, Optional
 from loguru import logger
@@ -361,7 +361,7 @@ class WhatsAppWebClient:
                         
                         # Tentar extrair data e hora do formato do WhatsApp
                         # Exemplo: "14:30" ou "14:30, 01/01/2023"
-                        current_date = datetime.datetime.now()
+                        current_date = datetime.now()
                         
                         if "," in timestamp_str:
                             # Formato com data
@@ -376,7 +376,7 @@ class WhatsAppWebClient:
                     except Exception as e:
                         logger.error(f"Erro ao extrair timestamp: {e}")
                         # Fallback para timestamp atual
-                        timestamp = int(datetime.datetime.now().timestamp())
+                        timestamp = int(datetime.now().timestamp())
                     
                     # Tratar diferentes tipos de mensagem
                     message_type = "text"

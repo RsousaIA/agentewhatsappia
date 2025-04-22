@@ -1,19 +1,24 @@
 import sys
 import os
-from flask import Blueprint, jsonify
+from flask import Blueprint, request, jsonify
 import json
+import logging
+from datetime import datetime
 
 # Adicionando o diretório raiz ao path para importar módulos
 sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
-from utils.metricas_servico import (
+from database.firebase_db import get_firestore_db
+from src.utils.logger import setup_logger
+from src.metrics.metrics_manager import MetricsManager
+from src.utils.metricas_servico import (
     obter_metricas_servico,
     calcular_tempo_medio_resposta,
     calcular_tempo_medio_resolucao,
     calcular_pontuacao_media_avaliacoes,
     calcular_eficiencia_atendentes
 )
-from utils.list_avaliacoes import get_avaliacoes
+from src.utils.list_avaliacoes import get_avaliacoes
 
 # Criando o blueprint para as rotas de métricas
 metricas_blueprint = Blueprint('metricas', __name__)

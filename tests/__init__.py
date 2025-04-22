@@ -1,1 +1,3 @@
-# Arquivo de inicialização do pacote de testes 
+"""
+Módulo de testes do projeto.
+""" 

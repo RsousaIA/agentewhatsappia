@@ -1,0 +1,125 @@
+# TAREFAS DE REFATORAÇÃO DOS AGENTES
+
+## 1. REORGANIZAÇÃO DE RESPONSABILIDADES ✅
+
+1.1. Remover lógica de avaliação do Coletor ✅
+    - Eliminar métodos _evaluate_conversations e _evaluate_single_conversation do collector_agent.py ✅
+    - Remover métodos _consolidate_attendances e _consolidate_single_attendance ✅
+
+1.2. Implementar Comunicação entre Agentes ✅
+    - Adicionar mecanismo de notificação quando uma conversa é encerrada ✅
+    - Opções: queue compartilhada, evento Pub/Sub, ou trigger do Firestore ✅
+
+1.3. Padronizar Status de Conversas ✅
+    - Definir lista oficial de status: "em_andamento", "encerrada", "reaberta" ✅
+    - Atualizar todo o código para usar esses status consistentemente ✅
+
+## 2. MELHORIAS NO AGENTE COLETOR ✅
+
+2.1. Aprimorar Detecção de Encerramento ✅
+    - Corrigir lógica de inatividade usando ultimaMensagem e INACTIVITY_TIMEOUT (6h) ✅
+    - Utilizar ollama.should_close_conversation() para detecção baseada em IA ✅
+    - Revisar _clean_inactive_conversations para trabalhar com conversas ativas ✅
+
+2.2. Melhorar Detecção de Solicitações ✅
+    - Revisar _parse_deadline para lidar com formatos de data mais complexos ✅
+    - Padronizar o formato de resposta do Ollama para JSON ✅
+
+2.3. Remover Dependências Desnecessárias ✅
+    - Eliminar importação e uso de AIEngine ✅
+
+## 3. REFORMULAÇÃO DO AGENTE AVALIADOR ✅
+
+3.1. Consolidar Lógica de Avaliação ✅
+    - Unificar os múltiplos métodos de avaliação (_process_evaluation_queue, _evaluate_conversation, etc.) ✅
+    - Criar ponto de entrada único para avaliações ✅
+
+3.2. Implementar Trigger de Avaliação ✅
+    - Adicionar método para receber notificações do Agente Coletor ✅
+    - Manter verificação periódica como fallback ✅
+
+3.3. Corrigir Cálculo de NPS ✅
+    - Reimplementar _calculate_nps com a fórmula correta (% Promotores - % Detratores) ✅
+
+3.4. Melhorar Uso do PriorityManager ✅
+    - Implementar queue.PriorityQueue para processar avaliações por prioridade ✅
+    - Garantir que o PriorityManager seja usado consistentemente ✅
+
+3.5. Padronizar Uso do EvaluationManager ✅
+    - Garantir que todas as avaliações usem self.evaluation_manager.evaluate_conversation ✅
+
+## 4. OTIMIZAÇÕES DOS MÓDULOS DE SUPORTE ✅
+
+4.1. Eliminar ai_engine.py ✅
+    - Refatorar qualquer uso para ollama_integration.py ✅
+
+4.2. Limpar prompts_library.py ✅
+    - Remover métodos duplicados ✅
+    - Converter métodos auxiliares para @staticmethod ou funções independentes ✅
+
+4.3. Padronizar Formato de Saída nos Prompts ✅
+    - Modificar todos os prompts para solicitar respostas em formato JSON ✅
+    - Atualizar o parsing de respostas para lidar com JSON consistentemente ✅
+
+4.4. Revisar evaluation_manager.py ✅
+    - Remover métodos _analyze_* redundantes ou implementá-los corretamente ✅
+    - Melhorar a robustez do parsing das respostas de IA ✅
+
+## 5. MODIFICAÇÕES NO FIREBASE ✅
+
+5.1. Atualização de Estrutura de Dados ✅
+    - Padronizar nomes de campos para seguir convenção consistente (camelCase) ✅
+    - Verificar se todos os campos necessários estão definidos conforme fluxo_trabalho.txt ✅
+
+5.2. Índices do Firestore ✅
+    - Criar índices compostos necessários para consultas de status + timestamp ✅
+    - Adicionar índice para a tag 'REOPENED' combinada com timestamps para otimizar consultas ✅
+
+5.3. Regras de Segurança ✅
+    - Revisar regras de segurança do Firestore para garantir acesso apropriado ✅
+    - Implementar validação de dados nas regras para garantir integridade ✅
+
+5.4. Migração de Dados ✅
+    - Criar script para migrar dados existentes para o novo formato de status ✅
+    - Adicionar campos que possam estar faltando em documentos existentes ✅
+
+5.5. Otimização de Consultas ✅
+    - Revisar e otimizar consultas ao Firestore para minimizar custos e latência ✅
+    - Implementar paginação adequada para grandes conjuntos de resultados ✅
+    - Atualizar código para usar FieldFilter em todas as consultas ✅
+
+## 6. TESTES E VALIDAÇÃO ✅
+
+6.1. Criar Testes Unitários ✅
+    - Testar mecanismos de detecção de encerramento ✅
+    - Testar cálculo de notas e NPS ✅
+    - Testar integração entre agentes ✅
+
+6.2. Criar Testes de Integração ✅
+    - Validar fluxo completo desde a mensagem até a avaliação ✅
+    - Testar cenários de reabertura de conversas ✅
+
+6.3. Testes de Desempenho do Firebase ✅
+    - Validar desempenho das consultas em volume ✅
+    - Testar escalabilidade com número crescente de conversas ✅
+
+6.4. Implementar Monitoramento ✅
+    - Adicionar métricas para acompanhar desempenho e latência ✅
+    - Melhorar logs para diagnóstico de problemas ✅
+    - Configurar alertas para falhas em consultas ao Firebase ✅
+
+## 7. DOCUMENTAÇÃO
+
+7.1. Atualizar Documentação Técnica
+    - Documentar nova arquitetura e fluxo de comunicação
+    - Detalhar status de conversas e regras de transição
+    - Incluir diagramas da estrutura atualizada do Firebase
+
+7.2. Criar Guia de Desenvolvimento
+    - Documentar padrões para criação/modificação de prompts
+    - Explicar como estender funcionalidades dos agentes
+    - Documentar boas práticas para consultas ao Firebase
+
+7.3. Documentação de Operações
+    - Criar guia para monitoramento e resolução de problemas
+    - Documentar procedimentos para backup e recuperação de dados do Firebase 

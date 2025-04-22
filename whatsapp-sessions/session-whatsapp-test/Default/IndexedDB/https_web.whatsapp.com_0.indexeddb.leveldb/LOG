@@ -1,0 +1,4 @@
+2025/04/16-14:39:27.357 279c Reusing MANIFEST D:\Projetos Python\AgenteSuporteWhatsapp\whatsapp-sessions\session-whatsapp-test\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2025/04/16-14:39:27.357 279c Recovering log #102
+2025/04/16-14:39:27.394 279c Reusing old log D:\Projetos Python\AgenteSuporteWhatsapp\whatsapp-sessions\session-whatsapp-test\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/000102.log 
+2025/04/16-14:39:29.628 423c Manual compaction at level-0 from '\x00\x1c\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x1d\x00\x00\x00' @ 0 : 0; will stop at (end)

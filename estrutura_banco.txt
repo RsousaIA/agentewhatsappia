@@ -1,0 +1,56 @@
+/conversas
+ └── {conversationId}
+      ├── cliente
+      │    ├── nome: string
+      │    └── telefone: string
+      ├── status: string
+      ├── dataHoraInicio: timestamp
+      ├── dataHoraEncerramento: timestamp (ou null se ainda não encerrou)
+      ├── foiReaberta: boolean (opcional)
+      ├── agentesEnvolvidos: array (opcional)
+      ├── tempoTotal: number (opcional)
+      ├── tempoRespostaMedio: number (opcional)
+      ├── ultimaMensagem: timestamp
+      └── mensagens (subcoleção)
+           └── {mensagemId}
+                ├── tipo: string ("texto", "audio", "imagem", etc.)
+                ├── conteudo: string (texto ou URL)
+                ├── remetente: string (ex.: "cliente" ou "idDoAtendente")
+                └── timestamp: timestamp
+
+      └── solicitacoes (subcoleção, opcional)
+           └── {solicitacaoId}
+                ├── descricao: string
+                ├── dataHoraCriacao: timestamp
+                ├── prazo: timestamp
+                ├── status: string ("pendente", "atrasada", "atendida", "nao_atendida")
+                ├── dataHoraAtendimento: timestamp (se atendida)
+                └── motivoNaoAtendimento: string (opcional)
+
+      └── avaliacoes (subcoleção, opcional)
+           └── {avaliacaoId}
+                ├── dataAvaliacao: timestamp
+                ├── reclamacoes: array[string] ou string
+                ├── notaComunicacaoClara: number (0-10)
+                ├── notaConhecimentoTecnico: number (0-10)
+                ├── notaEmpatiaCordialidade: number (0-10)
+                ├── notaProfissionalismoEtica: number (0-10)
+                ├── notaOrientacaoResultados: number (0-10)
+                ├── notaInteligenciaEmocional: number (0-10)
+                ├── notaCumprimentoPrazos: number (0-10)
+                ├── notaGeral: number (0-10)
+                ├── zerouPorCordialidade: boolean (opcional)
+                └── detalhesCriticos: string (observações ou comentários)
+
+----------------------------------------------------------------------------------------
+
+/consolidadoAtendimentos  (coleção opcional para relatórios)
+ └── {docId}
+      ├── conversationId: string
+      ├── clienteNome: string
+      ├── agentesEnvolvidos: array (se quiser registrar quem atendeu)
+      ├── dataHoraInicio: timestamp
+      ├── dataHoraEncerramento: timestamp
+      ├── notaGeral: number
+      ├── statusFinal: string
+      └── resumoFinal: string (breve descrição do resultado do atendimento)
